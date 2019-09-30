@@ -24,11 +24,29 @@ vars <- c(
   "Social Awareness"           = "SocialAwareness",
   "Social Responsibility"      = "SocialResponsibility",
   "Empathy"                    = "Empathy",
-  "Interpersonal Relationship" = "InterpersonalRelationship"
+  "Interpersonal Relationship" = "InterpersonalRelationship",
+  "SI Factor 1"                = "SI3Fac10",
+  "SI Factor 2"                = "SI3Fac20",
+  "SI Factor 3"                = "SI3Fac30"
 )
 
 # Aggregating
 aggregator <- function(v, f, pf="all", dat.) {
+  
+  
+  if (is.list(f)) {
+    
+    ans. <- aggregator(v = v, f = f[[1]], pf = pf[1], dat. = dat.)
+    if (length(f) > 1)
+      for (i in 2:length(f))
+        ans. <- merge(
+          ans., 
+          aggregator(v = v, f = f[[i]], pf = pf[i], dat. = dat.)
+        )
+      
+    return(ans.)
+      
+  }
   
   ans <- dat.[
     ,
@@ -36,6 +54,7 @@ aggregator <- function(v, f, pf="all", dat.) {
       lapply(.SD, f)), by = "group", .SDcols = v]
   
   colnames(ans)[4:(4+length(v) - 1)] <- paste0(v, pf)
+  
   ans
 }
 
@@ -60,14 +79,14 @@ as_asterisk <- function(x) {
 }
 
 counts <- new.env(parent = emptyenv())
-cor_test <- function(dat., vars., name.) {
+cor_test <- function(yvar, dat., vars., name.) {
   ans <- lapply(vars., function(v) {
     
     assign(v, sum(is.na(dat.[[v]])), envir = counts)
     
     with(
       # Correlation test
-      cor.test(dat.[[v]], dat.$CIF_T1),
+      cor.test(dat.[[v]], dat.[[yvar]]),
       
       # Distilling the results
       data.frame(
@@ -89,98 +108,175 @@ cor_test <- function(dat., vars., name.) {
   ans
 }
 
-# Computing tests --------------------------------------------------------------
-
 transformations <- list(
-  `Avg.`  = mean,
-  Min     = min,
-  Max     = max,
-  Range   = function(x.) diff(range(x.)),
-  Product = prod,
-  Sum     = sum #,
-  # `Avg. sq.`    = function(x.) mean(x.)^2,
+  `Avg.`  = function(x.) mean(x., na.rm=FALSE),
+  Min     = function(x.) min(x., na.rm=FALSE),
+  Max     = function(x.) max(x., na.rm=FALSE),
+  Range   = function(x.) diff(range(x., na.rm = FALSE)),
+  # Sum     = function(x.) sum(x., na.rm = TRUE),
+  # Product = function(x.) prod(x., na.rm = TRUE),
+  `Geometric Mean` = function(x.) prod(x., na.rm=FALSE)^(1/sum(!is.na(x.))),
+  `Avg. sq.`    = function(x.) mean(x., na.rm = TRUE)^2,
+  `Avg. sqrt.`    = function(x.) mean(x., na.rm = TRUE)^(1/2),
   # `Min sq.`     = function(x.) min(x.)^2,
   # `Max sq.`     = function(x.) max(x.)^2,
-  # `Range sq.`   = function(x.) diff(range(x.)),
-  # `Product sq.` = function(x.) prod(x.)^2,
+  `Range sq.`   = function(x.) diff(range(x., na.rm = TRUE)),
+  `Geom. Mean sq.` = function(x.) prod(x., na.rm = TRUE)^2
   # `Sum sq.`     = function(x.) sum(x.)^2
 )
 
-ans <- vector("list", length(transformations))
-excluded <- NULL
-for (i in seq_along(transformations)) {
+# Computing tests --------------------------------------------------------------
+
+for (time. in 1:2) {
   
-  res <- aggregator(vars, transformations[[i]], "", nodal_data)
-  ans[[i]] <-  cor_test(res, vars, names(transformations)[i])
+  yvar <- paste0("CIF_T", time.)
   
-  excluded <- cbind(excluded, unlist(as.list(counts)))
-  
-}
-
-
-# Merging 
-tab <- merge(ans[[1]], ans[[2]], all = TRUE)
-for (i in 3:length(ans))
-  tab <- merge(tab, ans[[i]], all = TRUE) 
-
-# Modifying the names
-tab$`Obs. Excluded` <- rowMeans(excluded)[tab$Variable]
-tab$Variable <- names(vars)[match(tab$Variable, vars)]
-
-tab <- as.matrix(tab)
-
-tab[grepl("NA NA", tab)] <- " - "
-
-# Highlighting the highest most significant correlatio levels
-three <- t(apply(tab, 1, function(t.) grepl("\\s+[*]{3}$", t.)))
-two   <- t(apply(tab, 1, function(t.) grepl("\\s+[*]{2}$", t.)))
-one   <- t(apply(tab, 1, function(t.) grepl("\\s+[*]{1}$", t.)))
-
-for (i in seq_len(nrow(tab))) {
-  
-  tab_i <- abs(as.numeric(gsub("\\s+|[*]+", "" ,tab[i,])))
-  
-  if (any(three[i,])) {
+  ans <- vector("list", length(transformations))
+  excluded <- NULL
+  for (i in seq_along(transformations)) {
     
-    # Which is the highest, of the ones with three
-    idx <- which(three[i,])
-    idx <- idx[which.max(tab_i[idx])]
-    tab[i, idx] <- sprintf("\\textbf{%s}", tab[i, idx])
+    res <- aggregator(vars, transformations[[i]], "", nodal_data)
+    ans[[i]] <-  cor_test(yvar, res, vars, names(transformations)[i])
     
-  } else if (any(two[i,])) {
-    
-    # Which is the highest, of the ones with three
-    idx <- which(two[i,])
-    idx <- idx[which.max(tab_i[idx])]
-    tab[i, idx] <- sprintf("\\textbf{%s}", tab[i, idx])
-    
-  } else if (any(one[i,])) {
-    
-    # Which is the highest, of the ones with three
-    idx <- which(one[i,])
-    idx <- idx[which.max(tab_i[idx])]
-    tab[i, idx] <- sprintf("\\textbf{%s}", tab[i, idx])
+    excluded <- cbind(excluded, unlist(as.list(counts)))
     
   }
   
+  
+  # Merging 
+  tab <- merge(ans[[1]], ans[[2]], all = TRUE)
+  for (i in 3:length(ans))
+    tab <- merge(tab, ans[[i]], all = TRUE) 
+  
+  # Modifying the names
+  # tab$`Obs. Excluded` <- apply(excluded, 1, paste, collapse="/")[tab$Variable]
+  tab$Variable <- names(vars)[match(tab$Variable, vars)]
+  
+  tab <- as.matrix(tab)
+  
+  tab[grepl("NA NA", tab)] <- " - "
+  
+  # Highlighting the highest most significant correlatio levels
+  three <- t(apply(tab, 1, function(t.) grepl("\\s+[*]{3}$", t.)))
+  two   <- t(apply(tab, 1, function(t.) grepl("\\s+[*]{2}$", t.)))
+  one   <- t(apply(tab, 1, function(t.) grepl("\\s+[*]{1}$", t.)))
+  
+  # Significance
+  aggregations_to_keep <- structure(vector("list", nrow(tab)), names = vars)
+  for (i in seq_len(nrow(tab))) {
+    
+    tab_i <- abs(as.numeric(gsub("\\s+|[*]+", "" ,tab[i,])))
+    
+    tmp_top2 <- NULL
+    if (any(three[i,])) {
+      
+      # Which is the highest, of the ones with three
+      idx <- which(three[i,])
+  
+      # We will save the top 2 (if any) per variable
+      tmp_top2 <- sort(idx, decreasing = TRUE)
+  
+      idx <- idx[which.max(tab_i[idx])]
+      tab[i, idx] <- sprintf("\\textbf{%s}", tab[i, idx])
+      
+    } else if (any(two[i,])) {
+      
+      # Which is the highest, of the ones with three
+      idx <- which(two[i,])
+      
+      # We will save the top 2 (if any) per variable
+      tmp_top2 <- sort(idx, decreasing = TRUE)
+      
+      idx <- idx[which.max(tab_i[idx])]
+      tab[i, idx] <- sprintf("\\textbf{%s}", tab[i, idx])
+      
+    } else if (any(one[i,])) {
+      
+      # Which is the highest, of the ones with three
+      idx <- which(one[i,])
+      
+      # We will save the top 2 (if any) per variable
+      tmp_top2 <- sort(idx, decreasing = TRUE)
+      
+      idx <- idx[which.max(tab_i[idx])]
+      tab[i, idx] <- sprintf("\\textbf{%s}", tab[i, idx])
+      
+    }
+    
+    # Storing the significant association
+    aggregations_to_keep[[vars[tab[i, "Variable"]]]] <-
+      transformations[colnames(tab)[which((three + two + one)[i,] == 1)]]
+    
+    # If no transformation is kept, then keep the average only
+    if (!length(aggregations_to_keep[[vars[tab[i, "Variable"]]]]))
+      aggregations_to_keep[[vars[tab[i, "Variable"]]]] <-
+      transformations["Avg."]
+    
+  }
+  
+  # Exporting
+  tab <- xtable(
+    tab,
+    caption = paste0(
+      "Correlation levels between group level predictors and CI in time ", time., ". ",
+      "For each variable (row), the most significant value is highlighted. ",
+      "The last column of the table indicates the number of groups droped from",
+      "the analysis due to missigness."
+    )
+    )
+  
+  align(tab) <- c(
+    c("l", "l"),
+    sprintf("m{%.2f\\linewidth}<\\centering ", rep(.95/(ncol(tab)), ncol(tab)-1))
+  )
+  
+  print(
+    tab, include.rownames = FALSE, booktabs = TRUE,
+    sanitize.text.function = function(i) i,
+    file = sprintf("analysis/univariate_%i.tex", time.), scalebox = .7
+    )
+  
+  # Now, we save the top associations. First, we need to sort the aggregations
+  # according to the order in which they show up in the vars vector
+
+  new_data <- vector("list", length(aggregations_to_keep))
+  for (i in seq_along(aggregations_to_keep)) {
+    
+    # We only select varaibles as a function of whether one was significant at this
+    # stage
+    if (!length(aggregations_to_keep[[i]]))
+      next
+    
+    # Computing aggregations (the top ones)
+      new_data[[i]] <- aggregator(
+        names(aggregations_to_keep)[i],
+        aggregations_to_keep[[i]],
+        paste0(" ", names(aggregations_to_keep[[i]])),
+        nodal_data
+        )
+    
+    
+  }
+  
+  # Merging all the dataset
+  univariate <- NULL
+  for (i in new_data) {
+    if (length(univariate) & length(i))
+      univariate <- merge(univariate, i, by = c("group", "CIF_T1", "CIF_T2"))
+    else if (length(i))
+      univariate <- i
+  }
+  
+  # # Rescaling variables
+  # for (i in which(grepl("(Product|Sum)$", colnames(univariate)))) {
+  #   univariate[[i]][] <- (univariate[[i]] - mean(univariate[[i]], na.rm=TRUE))/
+  #     (sd(univariate[[i]], na.rm = TRUE) + 1e-20)
+  # }
+  
+  saveRDS(univariate, sprintf("analysis/uniariate_%d.rds", time.))
 }
 
-# Exporting
-tab <- xtable(
-  tab,
-  caption = paste(
-    "Correlation levels between group level predictors and CI in time 1.",
-    "For each variable (row), the most significant value is highlighted.",
-    "The last column of the table indicates the number of groups droped from",
-    "the analysis due to missigness."
-  )
-  )
-
-print(
-  tab, include.rownames = FALSE, booktabs = TRUE,
-  sanitize.text.function = function(i) i,
-  file = "analysis/univariate.tex"
-  )
+stop()
 
 # Visuals ----------------------------------------------------------------------
 
@@ -238,3 +334,56 @@ for (i in seq_along(transformations)) {
     )
 }
 
+
+# Most significant per factor ---------------------------------------------------
+
+
+# Now, we save the top associations
+new_data <- vector("list", length(aggregations_to_keep))
+for (i in seq_along(aggregations_to_keep)) {
+  
+  # We only select varaibles as a function of whether one was significant at this
+  # stage
+  if (!length(aggregations_to_keep[[i]]))
+    next
+  
+  # Computing aggregations (the top ones)
+  new_data[[i]] <- aggregator(
+    vars[i],
+    transformations[aggregations_to_keep[[i]][1]],
+    "",
+    nodal_data
+  )
+  
+  
+}
+
+# Merging all the dataset
+plotdat <- NULL
+for (i in new_data) {
+  if (length(plotdat) & length(i))
+    plotdat <- merge(plotdat, i, by = c("group", "CIF_T1", "CIF_T2"))
+  else 
+    plotdat <- i
+}
+
+# Rscaling to get a better measurement (nicer on the plot)
+plotdat <- 
+  melt(plotdat, id.vars = c("CIF_T1", "CIF_T2"), measure.vars = vars)
+plotdat[
+  ,
+  value := (value - min(value, na.rm = TRUE))/(diff(range(value, na.rm = TRUE)) + 1e-20),
+  by = c("variable")
+  ]
+
+plotdat$variable <- names(vars)[match(plotdat$variable, vars)]
+
+
+ggplot(plotdat, aes(x = value, y = CIF_T1)) +
+  geom_point() +
+  ylim(c(-3, 3)) +
+  facet_wrap(variable ~ .) +
+  geom_smooth() +
+  labs(x = "Aggregated by most\nsignificant transformation", y = "Collective Intelligence")
+
+ggsave("analysis/univariate_best.png")

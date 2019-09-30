@@ -24,7 +24,10 @@ vars <- c(
   "Social Awareness"           = "SocialAwareness",
   "Social Responsibility"      = "SocialResponsibility",
   "Empathy"                    = "Empathy",
-  "Interpersonal Relationship" = "InterpersonalRelationship"
+  "Interpersonal Relationship" = "InterpersonalRelationship",
+  "SI Factor 1"                = "SI3Fac10",
+  "SI Factor 2"                = "SI3Fac20",
+  "SI Factor 3"                = "SI3Fac30"
 )
 
 # Report mean, missigness, and sd
