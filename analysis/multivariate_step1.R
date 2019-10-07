@@ -30,71 +30,22 @@ vars <- c(
   "SI Factor 3"                = "SI3Fac30"
 )
 
-# Group sizes
-group_size <- fread("data-raw/Study1_Group sizes.csv")
-group_size[, Group := sprintf("%02d", Group)]
-colnames(group_size)[1] <- "group"
-
 # Loading the aggregated data in 
 univariate_1 <- readRDS("analysis/uniariate_1.rds")
 univariate_2 <- readRDS("analysis/uniariate_2.rds")
 
-univariate_1 <- merge(univariate_1, group_size, by = "group")
-univariate_2 <- merge(univariate_2, group_size, by = "group")
-
 # Applying transformations -----------------------------------------------------
 
-vars1 <- setdiff(colnames(univariate_1), c("CIF_T1", "CIF_T2", "PID", "group", "groupSize"))
-# vars1 <- setdiff(vars1, vars1[grepl("^(GPA|SI3F)", vars1)])
+vars1 <- setdiff(colnames(univariate_1), c("CIF_T1", "CIF_T2", "PID", "group", "Size"))
 
-vars2 <- setdiff(colnames(univariate_2), c("CIF_T1", "CIF_T2", "PID", "group", "groupSize"))
-# vars2 <- setdiff(vars2, vars2[grepl("^(GPA|SI3F)", vars2)])
-
-# Adding an interaction effect with the group size -----------------------------
-for (i in vars1) {
-  univariate_1[[paste0(i," x Size")]] <- univariate_1[[i]] * univariate_1[["groupSize"]]
-  vars1 <- c(vars1, paste0(i," x Size"))
-}
-  
-for (i in vars2) {
-  univariate_2[[paste0(i," x Size")]] <- univariate_2[[i]] * univariate_2[["groupSize"]]
-  vars2 <- c(vars2, paste0(i," x Size"))
-}
-
-# Rescaling variables ----------------------------------------------------------
-for (i in seq_len(ncol(univariate_1))) {
-  if (is.numeric(univariate_1[[i]]))
-    univariate_1[[i]][] <- (univariate_1[[i]][] - mean(univariate_1[[i]][], na.rm=TRUE))/
-      (1e-15 + sd(univariate_1[[i]][], na.rm=TRUE))
-}
-
-for (i in seq_len(ncol(univariate_2))) {
-  if (is.numeric(univariate_2[[i]]))
-    univariate_2[[i]][] <- (univariate_2[[i]][] - mean(univariate_2[[i]][], na.rm=TRUE))/
-      (1e-15 + sd(univariate_2[[i]][], na.rm=TRUE))
-}
+vars2 <- setdiff(colnames(univariate_2), c("CIF_T1", "CIF_T2", "PID", "group", "Size"))
 
 # Program for general model fitting (all combinations)
-vars1 <- c(vars1, "groupSize")
-models1 <- expand.grid(vars1, vars1)
-models1 <- as.matrix(models1)
+vars1 <- c(vars1, "Size")
+models1 <- t(combn(vars1, 2))
 
-vars2 <- c(vars2, "groupSize")
-models2 <- expand.grid(vars2, vars2)
-models2 <- as.matrix(models2)
-
-# Filtering out cases
-models_main_vars1 <- models1
-models_main_vars1[] <- gsub("(Min|Max|Avg\\.|Geom\\.|Range).+$", "" , models_main_vars1)
-models1 <- models1[models_main_vars1[,1] != models_main_vars1[,2], ]
-
-models_main_vars2 <- models2
-models_main_vars2[] <- gsub("(Min|Max|Avg\\.|Geom\\.|Range).+$", "" , models_main_vars2)
-models2 <- models2[models_main_vars2[,1] != models_main_vars2[,2], ]
-
-# # All models should include group size
-# models1 <- cbind(models1, "groupSize")
-# models2 <- cbind(models2, "groupSize")
+vars2 <- c(vars2, "Size")
+models2 <- t(combn(vars2, 2))
 
 # Analysis for CIF_T1 ----------------------------------------------------------
 
@@ -104,7 +55,8 @@ saveRDS(fit1, "analysis/multivariate_step1_counts_time1.rds")
 tabulate_counts(
   model.       = fit1$model,
   significant. = fit1$significant,
-  file.        = "analysis/multivariate_step1_counts_time1.tex"
+  file.        = "analysis/multivariate_step1_counts_time1.tex",
+  caption.     = "Top 20 variables with 2 predictors for CI in time 1."
 )
 
 # Analysis for CIF_T2 ----------------------------------------------------------
@@ -114,6 +66,7 @@ saveRDS(fit2, "analysis/multivariate_step1_counts_time2.rds")
 tabulate_counts(
   model.       = fit2$model,
   significant. = fit2$significant,
-  file.        = "analysis/multivariate_step1_counts_time2.tex"
+  file.        = "analysis/multivariate_step1_counts_time2.tex",
+  caption.     = "Top 20 variables with 2 predictors for CI in time 2."
 )
 

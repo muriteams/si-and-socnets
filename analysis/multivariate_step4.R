@@ -1,4 +1,5 @@
 library(ggplot2)
+library(data.table)
 
 as_asterisk <- function(x) {
   
@@ -52,9 +53,8 @@ all_data <- lapply(names(all_data), function(dat.) {
 })
 
 all_data <- do.call(rbind, all_data)
-all_data$nvars <- sapply(all_data$model, length) - 1L
+all_data$nvars <- sapply(all_data$model, length) 
 all_data$Time  <- paste("CI in Time", gsub(".+_", "", all_data$Group))
-
 
 ggplot(tibble::as_tibble(all_data), aes(x = nvars, y = LOO_r2adj)) +
   geom_jitter(aes(color = factor(nsignificant, levels = 1:4)), height = 0) +
@@ -74,13 +74,13 @@ ggsave("analysis/multivariate_step4.png", width=8, height = 6)
 #' This function takes whatever set of observations was passed to it and creates
 #' a nice-looking latex table with the output from the model summarized.
 make_regression_table <- function(dat., file., caption.) {
-  vars <- unique(unlist(dat.$model))  
+  vars <- c(unique(unlist(dat.$model)), "(Intercept)")
   
   n <- nrow(dat.)
   res <- matrix(nrow = length(vars), ncol = n, dimnames = list(vars, 1:n))
   for (i in seq_len(n)) {
     
-    vars_i <- dat.$model[[i]]
+    vars_i <- rownames(dat.$beta[[i]])
     
     res[vars_i, i] <- sprintf(
       "\\makecell{%.2f%s \\\\ (%.2f)}", dat.$beta[[i]], 
@@ -90,8 +90,8 @@ make_regression_table <- function(dat., file., caption.) {
   }
   res <- rbind(
     res,
-    `LOO-RMSE`  = sprintf("%.2f", dat.$rmse),
-    `LOO-R2adj` = sprintf("%.2f", dat.$LOO_r2adj)
+    `CV-RMSE`  = sprintf("%.2f", dat.$rmse),
+    `CV-R2adj` = sprintf("%.2f", dat.$LOO_r2adj)
   )
   
   # Correcting rownmaes
@@ -109,6 +109,8 @@ make_regression_table <- function(dat., file., caption.) {
 
 }
 
+# Preparing to select and rerun the models -------------------------------------
+
 # Time 1
 time1 <- subset(all_data, Time == "CI in Time 1")
 time1 <- time1[order(time1$rmse, decreasing = FALSE),][1:10,]
@@ -116,8 +118,9 @@ time1 <- time1[order(time1$rmse, decreasing = FALSE),][1:10,]
 make_regression_table(
   time1,
   "analysis/multivariate_step4_time1.tex",
-  caption. = "Top 10 models predicting CI in time 1."
+  caption. = "Top 10 models predicting CI in time 1. RMSE and R2adj reported from the leave-one-out cross-validation."
   )
+
 
 # Time 2
 time2 <- subset(all_data, Time == "CI in Time 2")
@@ -126,5 +129,6 @@ time2 <- time2[order(time2$rmse, decreasing = FALSE),][1:10,]
 make_regression_table(
   time2,
   "analysis/multivariate_step4_time2.tex",
-  caption. = "Top 10 models predicting CI in time 2."
+  caption. = "Top 10 models predicting CI in time 2. RMSE and R2adj reported from the leave-one-out cross-validation."
   )
+

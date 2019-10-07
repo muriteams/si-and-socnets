@@ -6,6 +6,12 @@ library(ggplot2)
 nodal_data <- readRDS("data/nodal_data.rds")
 nodal_data <- data.table(nodal_data)
 
+group_size <- fread("data-raw/Study1_Group sizes.csv")
+group_size[, group := sprintf("%02d", Group)]
+group_size <- subset(group_size, select = c(-Group))
+group_size <- setNames(group_size, c("Size", "group"))
+
+
 vars <- c(
   # Socio-demographic controls
   Female                       = "Female",
@@ -47,7 +53,7 @@ aggregator <- function(v, f, pf="all", dat.) {
     return(ans.)
       
   }
-  
+
   ans <- dat.[
     ,
     c(list(CIF_T1 = max(CIF_T1), CIF_T2 = max(CIF_T2)),
@@ -115,13 +121,14 @@ transformations <- list(
   Range   = function(x.) diff(range(x., na.rm = FALSE)),
   # Sum     = function(x.) sum(x., na.rm = TRUE),
   # Product = function(x.) prod(x., na.rm = TRUE),
-  `Geometric Mean` = function(x.) prod(x., na.rm=FALSE)^(1/sum(!is.na(x.))),
+  # `Geometric Mean` = function(x.) prod(x., na.rm=FALSE)^(1/sum(!is.na(x.))),
   `Avg. sq.`    = function(x.) mean(x., na.rm = TRUE)^2,
   `Avg. sqrt.`    = function(x.) mean(x., na.rm = TRUE)^(1/2),
   # `Min sq.`     = function(x.) min(x.)^2,
   # `Max sq.`     = function(x.) max(x.)^2,
   `Range sq.`   = function(x.) diff(range(x., na.rm = TRUE)),
-  `Geom. Mean sq.` = function(x.) prod(x., na.rm = TRUE)^2
+  `Range sqrt.`   = function(x.) diff(range(x., na.rm = TRUE)) 
+  # `Geom. Mean sq.` = function(x.) prod(x., na.rm = TRUE)^2
   # `Sum sq.`     = function(x.) sum(x.)^2
 )
 
@@ -152,6 +159,7 @@ for (time. in 1:2) {
   # tab$`Obs. Excluded` <- apply(excluded, 1, paste, collapse="/")[tab$Variable]
   tab$Variable <- names(vars)[match(tab$Variable, vars)]
   
+  # Adding interaction effects with group size
   tab <- as.matrix(tab)
   
   tab[grepl("NA NA", tab)] <- " - "
@@ -233,7 +241,7 @@ for (time. in 1:2) {
   print(
     tab, include.rownames = FALSE, booktabs = TRUE,
     sanitize.text.function = function(i) i,
-    file = sprintf("analysis/univariate_%i.tex", time.), scalebox = .7
+    file = sprintf("analysis/univariate_%i.tex", time.), scalebox = .8
     )
   
   # Now, we save the top associations. First, we need to sort the aggregations
@@ -248,14 +256,12 @@ for (time. in 1:2) {
       next
     
     # Computing aggregations (the top ones)
-      new_data[[i]] <- aggregator(
-        names(aggregations_to_keep)[i],
-        aggregations_to_keep[[i]],
-        paste0(" ", names(aggregations_to_keep[[i]])),
-        nodal_data
-        )
-    
-    
+    new_data[[i]] <- aggregator(
+      names(aggregations_to_keep)[i],
+      aggregations_to_keep[[i]],
+      paste0(" ", names(aggregations_to_keep[[i]])),
+      nodal_data
+      )
   }
   
   # Merging all the dataset
@@ -267,11 +273,26 @@ for (time. in 1:2) {
       univariate <- i
   }
   
-  # # Rescaling variables
-  # for (i in which(grepl("(Product|Sum)$", colnames(univariate)))) {
-  #   univariate[[i]][] <- (univariate[[i]] - mean(univariate[[i]], na.rm=TRUE))/
-  #     (sd(univariate[[i]], na.rm = TRUE) + 1e-20)
-  # }
+  # Merging group size information
+  univariate <- merge(univariate, group_size, by = "group")
+  
+  # Creating interaction with group size and rescaling
+  vars_ii <- setdiff(colnames(univariate), c("group", "CIF_T1", "CIF_T2", "Size"))
+  for (ii in vars_ii) {
+    
+    # Interaction
+    univariate[[paste(ii,"x Size")]] <- univariate[[ii]] * univariate$Size
+    
+    # Rescaling both
+    univariate[[ii]] <- univariate[[ii]]/
+      (1e-15 + sd(univariate[[ii]], na.rm = TRUE))
+    univariate[[paste(ii,"x Size")]] <- univariate[[paste(ii,"x Size")]]/
+      (1e-15 + sd(univariate[[paste(ii,"x Size")]], na.rm = TRUE))
+    
+  }
+  
+  # # Adding an intercept
+  # univariate[["(Intercept)"]] <- 1.0
   
   saveRDS(univariate, sprintf("analysis/uniariate_%d.rds", time.))
 }

@@ -1,5 +1,8 @@
 fastlm <- function(y, x, check_nas = TRUE) {
   
+  # # Adding the intercept
+  # x <- cbind("(Intercept)" = 1, x)
+  
   # Checking for NAs
   if (check_nas) {
     idx <- which(complete.cases(y, x))
@@ -34,9 +37,12 @@ fastlm <- function(y, x, check_nas = TRUE) {
 
 
 # Leave-one-out
-LOO <- function(y, x) {
+LOO <- function(y, x, add_intercept = TRUE) {
   
-  x <- cbind(`(Intercept)` = 1, as.matrix(x))
+  if (add_intercept)
+    x <- cbind(`(Intercept)` = 1, as.matrix(x))
+  else
+    x <- as.matrix(x)
   
   pred <- vector("numeric", length(y))
   for (i in seq_len(length(y))) {
@@ -96,18 +102,24 @@ analyze_models <- function(depvar, dat., models., mc.cores = 4L) {
   }, mc.cores = mc.cores)
   
   fit <- do.call(rbind, fit)
-  fit$model        <- mclapply(fit$pval, rownames, mc.cores = mc.cores)
+  
+  # Excluding the intercept from the model
+  fit$model        <- mclapply(fit$pval, function(f.) {
+    setdiff(rownames(f.), "(Intercept)")
+    }, mc.cores = mc.cores)
+  
   fit$nsignificant <- unlist(mclapply(fit$pval, function(p) sum(p < .05), mc.cores = mc.cores))
   fit$significant  <- mclapply(fit$pval, function(p) rownames(p)[which(p < .05)], mc.cores =mc.cores)
   fit
   
 }
+
 #' This function takes a list with the set of variables included in the model
 #' and a nother list with the set of variables that showed up to be significant
 #' in that model and creates a table reporting the number and proportion of time
 #' that the variable showed up to be significant.
 #' # We swap this b/c of how stringr::str_replace_all works
-tabulate_counts <- function(model., significant., file.) {
+tabulate_counts <- function(model., significant., file., caption. = NULL, n = 20L) {
 
   varnames <- c(
     # Socio-demographic controls
@@ -147,17 +159,22 @@ tabulate_counts <- function(model., significant., file.) {
   
   tab$Proportion <- with(tab, Count/Total)
   
-  tab <- tab[order(-tab$Count),]
+  tab <- tab[order(-tab$Proportion),]
+  
+  if (n > 0)
+    tab <- tab[1L:n,,drop=FALSE]
   
   # Replacing names
   tab$Variable <- stringr::str_replace_all(tab$Variable, varnames)
   
   print(
-    xtable::xtable(tab),
+    xtable::xtable(tab, caption=caption.),
     file = file.,
     include.rownames = FALSE,
     tabular.environment = "longtable",
-    floating = FALSE
+    floating = FALSE,
+    booktabs = TRUE
   )
   
 }
+
