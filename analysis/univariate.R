@@ -114,20 +114,25 @@ cor_test <- function(yvar, dat., vars., name.) {
   ans
 }
 
+impute <- function(i) {
+  # i[is.na(i)] <- mean(i, na.rm = TRUE)
+  i
+}
+
 transformations <- list(
-  `Avg.`  = function(x.) mean(x., na.rm=FALSE),
-  Min     = function(x.) min(x., na.rm=FALSE),
-  Max     = function(x.) max(x., na.rm=FALSE),
-  Range   = function(x.) diff(range(x., na.rm = FALSE)),
+  `Avg.`  = function(x.) mean(impute(x.), na.rm = FALSE),
+  Min     = function(x.) min(impute(x.), na.rm = FALSE),
+  Max     = function(x.) max(impute(x.), na.rm = FALSE),
+  Range   = function(x.) diff(range(impute(x.), na.rm = FALSE)),
   # Sum     = function(x.) sum(x., na.rm = TRUE),
   # Product = function(x.) prod(x., na.rm = TRUE),
   # `Geometric Mean` = function(x.) prod(x., na.rm=FALSE)^(1/sum(!is.na(x.))),
-  `Avg. sq.`    = function(x.) mean(x., na.rm = TRUE)^2,
-  `Avg. sqrt.`    = function(x.) mean(x., na.rm = TRUE)^(1/2),
+  `Avg. sq.`    = function(x.) mean(impute(x.), na.rm = FALSE)^2,
+  `Avg. sqrt.`    = function(x.) mean(impute(x.), na.rm = FALSE)^(1/2),
   # `Min sq.`     = function(x.) min(x.)^2,
   # `Max sq.`     = function(x.) max(x.)^2,
-  `Range sq.`   = function(x.) diff(range(x., na.rm = TRUE)),
-  `Range sqrt.`   = function(x.) diff(range(x., na.rm = TRUE)) 
+  `Range sq.`   = function(x.) diff(range(impute(x.), na.rm = FALSE)),
+  `Range sqrt.`   = function(x.) diff(range(impute(x.), na.rm = FALSE)) 
   # `Geom. Mean sq.` = function(x.) prod(x., na.rm = TRUE)^2
   # `Sum sq.`     = function(x.) sum(x.)^2
 )
@@ -226,7 +231,7 @@ for (time. in 1:2) {
   tab <- xtable(
     tab,
     caption = paste0(
-      "Correlation levels between group level predictors and CI in time ", time., ". ",
+      "\\label{tab:cor",time.,"}Correlation levels between group level predictors and CI in time ", time., ". ",
       "For each variable (row), the most significant value is highlighted. ",
       "The last column of the table indicates the number of groups droped from",
       "the analysis due to missigness."
@@ -280,131 +285,131 @@ for (time. in 1:2) {
   vars_ii <- setdiff(colnames(univariate), c("group", "CIF_T1", "CIF_T2", "Size"))
   for (ii in vars_ii) {
     
-    # Interaction
-    univariate[[paste(ii,"x Size")]] <- univariate[[ii]] * univariate$Size
+    # # Interaction
+    # univariate[[paste(ii,"x Size")]] <- univariate[[ii]] * univariate$Size
     
     # Rescaling both
     univariate[[ii]] <- univariate[[ii]]/
       (1e-15 + sd(univariate[[ii]], na.rm = TRUE))
-    univariate[[paste(ii,"x Size")]] <- univariate[[paste(ii,"x Size")]]/
-      (1e-15 + sd(univariate[[paste(ii,"x Size")]], na.rm = TRUE))
+    # univariate[[paste(ii,"x Size")]] <- univariate[[paste(ii,"x Size")]]/
+    #   (1e-15 + sd(univariate[[paste(ii,"x Size")]], na.rm = TRUE))
     
   }
   
   # # Adding an intercept
   # univariate[["(Intercept)"]] <- 1.0
   
-  saveRDS(univariate, sprintf("analysis/uniariate_%d.rds", time.))
+  saveRDS(univariate, sprintf("analysis/univariate_%d.rds", time.))
 }
 
-stop()
-
-# Visuals ----------------------------------------------------------------------
-
-# Using base R
-tmp <- aggregator(vars, transformations[[1]], pf = "", dat. = nodal_data)
-
-op <- par(mfrow = c(4, 4), mai = rep(.2, 4), oma = c(4,4,4,0))
-for (v in vars) {
-  plot(y = tmp[["CIF_T1"]], x = tmp[[v]])
-  abline(lm(tmp[["CIF_T1"]] ~ tmp[[v]]))
-}
-par(op)
-title(names(transformations)[1])
-
-# With ggplot
-
-plotdat <- NULL
-for (i in seq_along(transformations)) 
-  plotdat <- rbind(
-    plotdat,
-    cbind(
-      aggregator(vars, transformations[[i]], "", nodal_data),
-      Type = names(transformations)[i]
-      )
-  )
-
-plotdat <- 
-  melt(plotdat, id.vars = c("Type", "CIF_T1", "CIF_T2"), measure.vars = vars)
-
-
-# Rscaling to get a better measurement (nicer on the plot)
-plotdat[
-  ,
-  value := (value - min(value, na.rm = TRUE))/diff(range(value, na.rm = TRUE)),
-  by = c("Type", "variable")
-  ]
-
-plotdat$variable <- names(vars)[match(plotdat$variable, vars)]
-
-# For the mean first
-for (i in seq_along(transformations)) {
-  subset(plotdat, Type == names(transformations)[i]) %>%
-    ggplot(aes(x = value, y = CIF_T1)) +
-    geom_point() +
-    ylim(c(-3, 3)) +
-    facet_wrap(variable ~ .) +
-    geom_smooth() +
-    labs(x = paste("Group", names(transformations)[i]), y = "Collective Intelligence")
-  
-  ggsave(
-    filename = sprintf(
-      "analysis/univariate_%s.png",
-      gsub("[._ ]+", "_", tolower(names(transformations)[i]))
-      )
-    )
-}
-
-
-# Most significant per factor ---------------------------------------------------
-
-
-# Now, we save the top associations
-new_data <- vector("list", length(aggregations_to_keep))
-for (i in seq_along(aggregations_to_keep)) {
-  
-  # We only select varaibles as a function of whether one was significant at this
-  # stage
-  if (!length(aggregations_to_keep[[i]]))
-    next
-  
-  # Computing aggregations (the top ones)
-  new_data[[i]] <- aggregator(
-    vars[i],
-    transformations[aggregations_to_keep[[i]][1]],
-    "",
-    nodal_data
-  )
-  
-  
-}
-
-# Merging all the dataset
-plotdat <- NULL
-for (i in new_data) {
-  if (length(plotdat) & length(i))
-    plotdat <- merge(plotdat, i, by = c("group", "CIF_T1", "CIF_T2"))
-  else 
-    plotdat <- i
-}
-
-# Rscaling to get a better measurement (nicer on the plot)
-plotdat <- 
-  melt(plotdat, id.vars = c("CIF_T1", "CIF_T2"), measure.vars = vars)
-plotdat[
-  ,
-  value := (value - min(value, na.rm = TRUE))/(diff(range(value, na.rm = TRUE)) + 1e-20),
-  by = c("variable")
-  ]
-
-plotdat$variable <- names(vars)[match(plotdat$variable, vars)]
-
-
-ggplot(plotdat, aes(x = value, y = CIF_T1)) +
-  geom_point() +
-  ylim(c(-3, 3)) +
-  facet_wrap(variable ~ .) +
-  geom_smooth() +
-  labs(x = "Aggregated by most\nsignificant transformation", y = "Collective Intelligence")
-
-ggsave("analysis/univariate_best.png")
+# stop()
+# 
+# # Visuals ----------------------------------------------------------------------
+# 
+# # Using base R
+# tmp <- aggregator(vars, transformations[[1]], pf = "", dat. = nodal_data)
+# 
+# op <- par(mfrow = c(4, 4), mai = rep(.2, 4), oma = c(4,4,4,0))
+# for (v in vars) {
+#   plot(y = tmp[["CIF_T1"]], x = tmp[[v]])
+#   abline(lm(tmp[["CIF_T1"]] ~ tmp[[v]]))
+# }
+# par(op)
+# title(names(transformations)[1])
+# 
+# # With ggplot
+# 
+# plotdat <- NULL
+# for (i in seq_along(transformations)) 
+#   plotdat <- rbind(
+#     plotdat,
+#     cbind(
+#       aggregator(vars, transformations[[i]], "", nodal_data),
+#       Type = names(transformations)[i]
+#       )
+#   )
+# 
+# plotdat <- 
+#   melt(plotdat, id.vars = c("Type", "CIF_T1", "CIF_T2"), measure.vars = vars)
+# 
+# 
+# # Rscaling to get a better measurement (nicer on the plot)
+# plotdat[
+#   ,
+#   value := (value - min(value, na.rm = TRUE))/diff(range(value, na.rm = TRUE)),
+#   by = c("Type", "variable")
+#   ]
+# 
+# plotdat$variable <- names(vars)[match(plotdat$variable, vars)]
+# 
+# # For the mean first
+# for (i in seq_along(transformations)) {
+#   subset(plotdat, Type == names(transformations)[i]) %>%
+#     ggplot(aes(x = value, y = CIF_T1)) +
+#     geom_point() +
+#     ylim(c(-3, 3)) +
+#     facet_wrap(variable ~ .) +
+#     geom_smooth() +
+#     labs(x = paste("Group", names(transformations)[i]), y = "Collective Intelligence")
+#   
+#   ggsave(
+#     filename = sprintf(
+#       "analysis/univariate_%s.png",
+#       gsub("[._ ]+", "_", tolower(names(transformations)[i]))
+#       )
+#     )
+# }
+# 
+# 
+# # Most significant per factor ---------------------------------------------------
+# 
+# 
+# # Now, we save the top associations
+# new_data <- vector("list", length(aggregations_to_keep))
+# for (i in seq_along(aggregations_to_keep)) {
+#   
+#   # We only select varaibles as a function of whether one was significant at this
+#   # stage
+#   if (!length(aggregations_to_keep[[i]]))
+#     next
+#   
+#   # Computing aggregations (the top ones)
+#   new_data[[i]] <- aggregator(
+#     vars[i],
+#     transformations[aggregations_to_keep[[i]][1]],
+#     "",
+#     nodal_data
+#   )
+#   
+#   
+# }
+# 
+# # Merging all the dataset
+# plotdat <- NULL
+# for (i in new_data) {
+#   if (length(plotdat) & length(i))
+#     plotdat <- merge(plotdat, i, by = c("group", "CIF_T1", "CIF_T2"))
+#   else 
+#     plotdat <- i
+# }
+# 
+# # Rscaling to get a better measurement (nicer on the plot)
+# plotdat <- 
+#   melt(plotdat, id.vars = c("CIF_T1", "CIF_T2"), measure.vars = vars)
+# plotdat[
+#   ,
+#   value := (value - min(value, na.rm = TRUE))/(diff(range(value, na.rm = TRUE)) + 1e-20),
+#   by = c("variable")
+#   ]
+# 
+# plotdat$variable <- names(vars)[match(plotdat$variable, vars)]
+# 
+# 
+# ggplot(plotdat, aes(x = value, y = CIF_T1)) +
+#   geom_point() +
+#   ylim(c(-3, 3)) +
+#   facet_wrap(variable ~ .) +
+#   geom_smooth() +
+#   labs(x = "Aggregated by most\nsignificant transformation", y = "Collective Intelligence")
+# 
+# ggsave("analysis/univariate_best.png")

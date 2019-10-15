@@ -1,3 +1,5 @@
+
+
 fastlm <- function(y, x, check_nas = TRUE) {
   
   # # Adding the intercept
@@ -44,18 +46,28 @@ LOO <- function(y, x, add_intercept = TRUE) {
   else
     x <- as.matrix(x)
   
+  # Trying estimates first
+  estimates <- tryCatch(fastlm(y, x), error = function(e) e)
+  if (inherits(estimates, "error"))
+    return(estimates)
+  
   pred <- vector("numeric", length(y))
-  for (i in seq_len(length(y))) {
+  for (i in seq_along(y)) {
     
-    if (any(is.na(c(x[i,], y[i]))))
+    # If any of the ith is missing, then next
+    if (any(is.na(c(x[i,], y[i])))) {
       pred[i] <- NA_real_
+      next
+    }
     
     tmp <- tryCatch(fastlm(y[-i], x[-i,,drop=FALSE]), error = function(e) e)
     
+    # If is error, we cannot do anything
     if (inherits(tmp, "error"))
       pred[i] <- NA_real_
+    else
+      pred[i] <- x[i,,drop=TRUE] %*% tmp$beta 
     
-    pred[i] <- x[i,,drop=TRUE] %*% tmp$beta 
     
   }
   
@@ -65,7 +77,7 @@ LOO <- function(y, x, add_intercept = TRUE) {
   y_mean <- mean(y[idx])
   
   c(
-    tryCatch(fastlm(y, x), error = function(e) e),
+    estimates,
     list(
       LOO_rmse  = sqrt(mean((y - pred)^2, na.rm = TRUE)),
       LOO_r2adj = 1 - (n - 1)/(n - k)*(1 - sum((pred[idx] - y_mean)^2)/sum((y[idx] - y_mean)^2))
@@ -81,8 +93,9 @@ library(parallel)
 analyze_models <- function(depvar, dat., models., mc.cores = 4L) {
   
   # Applying the Leave one out cross validation
-  fit <- mclapply(seq_len(nrow(models.)), function(i) {
-    tryCatch(LOO(dat.[[depvar]], dat.[,models.[i,], drop = FALSE]), error = function(e) e)
+  # Notice that LOO will add the intercept by default!
+  fit <- mclapply(seq_len(length(models.)), function(i) {
+    tryCatch(LOO(dat.[[depvar]], dat.[,models.[[i]], drop = FALSE]), error = function(e) e)
   }, mc.cores = mc.cores)
   
   # Checking how many went OK (most failures are due to colieanirity)
@@ -98,18 +111,21 @@ analyze_models <- function(depvar, dat., models., mc.cores = 4L) {
     ans$beta <- list(f$beta)
     ans$pval <- list(f$pval)
     ans$sd   <- list(sqrt(diag(f$vcov)))
+    
     ans
   }, mc.cores = mc.cores)
   
   fit <- do.call(rbind, fit)
-  
-  # Excluding the intercept from the model
+    
+  # Excluding the intercept from the model (because we added it during the LOO)
+  # step!
   fit$model        <- mclapply(fit$pval, function(f.) {
     setdiff(rownames(f.), "(Intercept)")
     }, mc.cores = mc.cores)
   
   fit$nsignificant <- unlist(mclapply(fit$pval, function(p) sum(p < .05), mc.cores = mc.cores))
   fit$significant  <- mclapply(fit$pval, function(p) rownames(p)[which(p < .05)], mc.cores =mc.cores)
+  
   fit
   
 }
@@ -119,7 +135,7 @@ analyze_models <- function(depvar, dat., models., mc.cores = 4L) {
 #' in that model and creates a table reporting the number and proportion of time
 #' that the variable showed up to be significant.
 #' # We swap this b/c of how stringr::str_replace_all works
-tabulate_counts <- function(model., significant., file., caption. = NULL, n = 20L) {
+tabulate_counts <- function(model., significant., file., caption. = NULL, n = 10L) {
 
   varnames <- c(
     # Socio-demographic controls
@@ -178,3 +194,17 @@ tabulate_counts <- function(model., significant., file., caption. = NULL, n = 20
   
 }
 
+
+grow_a_model <- function(l., v., size = NULL, mc.cores = 4L) {
+  
+  newmodels <- expand.grid(l., v., stringsAsFactors = FALSE)
+  newmodels <- mcMap(function(a,b) {
+    unique(sort(c(a,b)))
+    }, a = newmodels[,1], b = newmodels[,2], mc.cores = mc.cores)
+  
+  if (!is.null(size))
+    newmodels <- newmodels[sapply(newmodels, length) == size]
+  
+  unique(newmodels)
+  
+}
