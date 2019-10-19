@@ -31,13 +31,24 @@ vars <- c(
 )
 
 # Report mean, missigness, and sd
-meaner <- function(x) sprintf(
-  "%.2f (%.2f)",
-  mean(x, na.rm = TRUE),
-  sd(x, na.rm = TRUE)
-)
+meaner <- function(x, pcent = FALSE) {
+  if (!pcent) {
+    res <- sprintf(
+      "%.2f (%.2f)",
+      mean(x, na.rm = TRUE),
+      sd(x, na.rm = TRUE)
+    )
+    
+    return(gsub("-0.00 ", "0.00 ", res))
+  }
+  
+  sprintf("%.2f%% (%d)", mean(x, na.rm = TRUE)*100, sum(x, na.rm = TRUE))
+  
+}
 
-tab <- sapply(vars, function(x.) meaner(nodal_data[[x.]])) %>%
+tab <- sapply(vars, function(x.) {
+  meaner(nodal_data[[x.]], x. %in% c("Female", "nonwhite"))
+  }) %>%
   cbind
 
 # For collective intelligence, we need to compute the aggregate per group
@@ -52,17 +63,24 @@ group_data <- nodal_data[
 ci_vars <- c("CI in time 1" = "CIF_T1", "CI in time 2" = "CIF_T2")
 tab <- rbind(
   tab, {
-    sapply(ci_vars, function(x.) meaner(nodal_data[[x.]])) %>%
+    sapply(ci_vars, function(x.) {
+      meaner(nodal_data[[x.]])
+      }) %>%
       cbind
 })
 
+
 tab <- data.frame(
   Variable = rownames(tab),
-  "Mean (sd)" = tab[,1], check.names = FALSE
+  "Mean/% (sd/N)" = tab[,1], check.names = FALSE
 )
 rownames(tab) <- seq_len(nrow(tab))
 
-tab <- xtable(tab)
+tab <- xtable(tab, label = "tab:descstats0")
+caption(tab) <- paste(
+  "Descriptive statistics of the variables captured in the study.",
+  "The sample included 178 individuals."
+  )
 print(
   tab,
   file             = "figures/descriptive_stats.tex",

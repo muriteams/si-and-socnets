@@ -9,30 +9,7 @@ as_asterisk <- function(x) {
   
 }
 
-varnames <- c(
-  # Socio-demographic controls
-  Female                       = "Female",
-  "Non-white"                  = "nonwhite",
-  Age                          = "Age0",
-  GPA                          = "GPA0",
-  # Psychological measurements
-  RME                          = "RME0",
-  Extraversion                 = "TIPI_Extraversion",
-  Agreeableness                = "TIPI_Agreeableness",
-  Conscientiousness            = "TIPI_Conscientiousness",
-  "Emotional Stability"        = "TIPI_EmotionalStability",
-  "Openness to Exp."    = "TIPI_OpennesstoExperiences",
-  "Soc. Info. Proc."    = "SocialInfoProcessing",
-  "Soc. Skills"              = "SocialSkills",
-  "Soc. Awareness"           = "SocialAwareness",
-  "Soc. Resp."      = "SocialResponsibility",
-  "Empathy"                    = "Empathy",
-  "Interper. Rel." = "InterpersonalRelationship",
-  "SI Factor 1"                = "SI3Fac10",
-  "SI Factor 2"                = "SI3Fac20",
-  "SI Factor 3"                = "SI3Fac30",
-  "Geom."                  = "Geometric"
-)
+varnames <- VARNAMES
 
 # We swap this b/c of how stringr::str_replace_all works
 varnames <- structure(names(varnames), names = unname(varnames))
@@ -106,7 +83,7 @@ make_regression_table <- function(dat., file., caption.) {
     rep(sprintf(" m{%.2f\\linewidth}<\\centering", .8/(ncol(res))), ncol(res))
   )
   
-  print(res, file = file., booktabs = TRUE, scalebox=.8,
+  print(res, file = file., booktabs = TRUE, scalebox=.75,
         sanitize.text.function = function(e) e)
 
 }
@@ -122,7 +99,7 @@ saveRDS(time1, "analysis/multivariate_step5_time1.rds")
 make_regression_table(
   time1,
   "analysis/multivariate_step5_time1.tex",
-  caption. = "Top 10 models predicting CI in time 1. RMSE and R2adj reported from the leave-one-out cross-validation."
+  caption. = "\\label{tab:top10_1}Top 10 models predicting CI in time 1. RMSE and R2adj reported from the leave-one-out cross-validation."
   )
 
 
@@ -135,6 +112,6 @@ saveRDS(time2, "analysis/multivariate_step5_time2.rds")
 make_regression_table(
   time2,
   "analysis/multivariate_step5_time2.tex",
-  caption. = "Top 10 models predicting CI in time 2. RMSE and R2adj reported from the leave-one-out cross-validation."
+  caption. = "\\label{tab:top10_2}Top 10 models predicting CI in time 2. RMSE and R2adj reported from the leave-one-out cross-validation."
   )
 

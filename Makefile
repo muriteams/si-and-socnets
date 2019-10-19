@@ -8,7 +8,8 @@ analyze:
 	R CMD BATCH analysis/multivariate_step2.R && \
 	R CMD BATCH analysis/multivariate_step3.R && \
 	R CMD BATCH analysis/multivariate_step4.R && \
-	R CMD BATCH analysis/multivariate_step5.R &
+	R CMD BATCH analysis/multivariate_step5.R && \
+	R CMD BATCH analysis/multivariate_stepfinal.R &
 clean:
 	rm -f analysis/*.rds analysis/*.tex analysis/*.png
 

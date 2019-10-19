@@ -130,6 +130,31 @@ analyze_models <- function(depvar, dat., models., mc.cores = 4L) {
   
 }
 
+VARNAMES <- c(
+  # Socio-demographic controls
+  Female                       = "Female",
+  "Non-white"                  = "nonwhite",
+  Age                          = "Age0",
+  GPA                          = "GPA0",
+  # Psychological measurements
+  RME                          = "RME0",
+  Extraversion                 = "TIPI_Extraversion",
+  Agreeableness                = "TIPI_Agreeableness",
+  Conscientiousness            = "TIPI_Conscientiousness",
+  "Emotional Stability"        = "TIPI_EmotionalStability",
+  "Openness to Exp."    = "TIPI_OpennesstoExperiences",
+  "Soc. Info. Proc."    = "SocialInfoProcessing",
+  "Soc. Skills"              = "SocialSkills",
+  "Soc. Awareness"           = "SocialAwareness",
+  "Soc. Resp."      = "SocialResponsibility",
+  "Empathy"                    = "Empathy",
+  "Interper. Rel." = "InterpersonalRelationship",
+  "SI Factor 1"                = "SI3Fac10",
+  "SI Factor 2"                = "SI3Fac20",
+  "SI Factor 3"                = "SI3Fac30",
+  "Geom."                  = "Geometric"
+)
+
 #' This function takes a list with the set of variables included in the model
 #' and a nother list with the set of variables that showed up to be significant
 #' in that model and creates a table reporting the number and proportion of time
@@ -137,30 +162,7 @@ analyze_models <- function(depvar, dat., models., mc.cores = 4L) {
 #' # We swap this b/c of how stringr::str_replace_all works
 tabulate_counts <- function(model., significant., file., caption. = NULL, n = 10L) {
 
-  varnames <- c(
-    # Socio-demographic controls
-    Female                       = "Female",
-    "Non-white"                  = "nonwhite",
-    Age                          = "Age0",
-    GPA                          = "GPA0",
-    # Psychological measurements
-    RME                          = "RME0",
-    Extraversion                 = "TIPI_Extraversion",
-    Agreeableness                = "TIPI_Agreeableness",
-    Conscientiousness            = "TIPI_Conscientiousness",
-    "Emotional Stability"        = "TIPI_EmotionalStability",
-    "Openness to Exp."    = "TIPI_OpennesstoExperiences",
-    "Soc. Info. Proc."    = "SocialInfoProcessing",
-    "Soc. Skills"              = "SocialSkills",
-    "Soc. Awareness"           = "SocialAwareness",
-    "Soc. Resp."      = "SocialResponsibility",
-    "Empathy"                    = "Empathy",
-    "Interper. Rel." = "InterpersonalRelationship",
-    "SI Factor 1"                = "SI3Fac10",
-    "SI Factor 2"                = "SI3Fac20",
-    "SI Factor 3"                = "SI3Fac30",
-    "Geom."                  = "Geometric"
-  )
+  varnames <- VARNAMES
   varnames <- structure(names(varnames), names = unname(varnames))
     
   tab <- as.data.frame(
