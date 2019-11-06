@@ -1,6 +1,6 @@
 library(ggplot2)
 library(data.table)
-
+source("analysis/fitters.R")
 as_asterisk <- function(x) {
   
   ifelse(x < .001, "$^{***}$",
@@ -35,10 +35,14 @@ all_data <- do.call(rbind, all_data)
 all_data$nvars <- sapply(all_data$model, length) 
 all_data$Time  <- paste("CI in Time", gsub(".+_", "", all_data$Group))
 
-ggplot(tibble::as_tibble(all_data), aes(x = nvars + 1, y = LOO_rmse)) +
-  geom_jitter(aes(color = factor(nsignificant, levels = 0:6)), height = 0) +
+all_data$nsignificant <- sapply(all_data$significant, function(i) {
+  length(setdiff(i, "(Intercept)"))
+})
+
+ggplot(tibble::as_tibble(all_data), aes(x = nvars, y = LOO_rmse)) +
+  geom_jitter(aes(color = factor(nsignificant, levels = 0:5)), height = 0) +
   scale_color_viridis_d(alpha = .7) +
-  scale_x_continuous(breaks = 2:6) +
+  scale_x_continuous(breaks = 2:5) +
   facet_grid(cols = vars(Time)) +
   labs(
     color = "# of significant\npredictors",

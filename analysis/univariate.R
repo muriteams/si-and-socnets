@@ -98,7 +98,9 @@ cor_test <- function(yvar, dat., vars., name.) {
       data.frame(
         Variable = v,
         Estimate = sprintf(
-          "%.2f %s", estimate, # conf.int[1], conf.int[2],
+          "%s%.2f %s",
+          ifelse(estimate > 0, "\\hphantom{-}", ""),
+          estimate, # conf.int[1], conf.int[2],
           as_asterisk(p.value)
         ),
         check.names = FALSE,
@@ -154,7 +156,7 @@ for (time. in 1:2) {
     
   }
   
-  
+  # stop()
   # Merging 
   tab <- merge(ans[[1]], ans[[2]], all = TRUE)
   for (i in 3:length(ans))
@@ -231,16 +233,15 @@ for (time. in 1:2) {
   tab <- xtable(
     tab,
     caption = paste0(
-      "\\label{tab:cor",time.,"}Correlation levels between group level predictors and CI in time ", time., ". ",
+      "\\label{tab:cor",time.,"}Person's product-moment Correlation statistics between group level predictors and CI in time ", time., ". ",
       "For each variable (row), the most significant value is highlighted. ",
-      "The last column of the table indicates the number of groups droped from",
-      "the analysis due to missigness."
+      "Signifance levels: $^{***} p < 0.001$; $^{**} p < 0.01$; $^{*} p < 0.05$."
     )
     )
   
   align(tab) <- c(
     c("l", "l"),
-    sprintf("m{%.2f\\linewidth}<\\centering ", rep(.95/(ncol(tab)), ncol(tab)-1))
+    sprintf("m{%.2f\\linewidth} ", rep(.95/(ncol(tab)), ncol(tab)-1))
   )
   
   print(

@@ -1,6 +1,6 @@
 copy:
 	cp */*.tex /home/vegayon/Dropbox/Apps/Overleaf/MURI\ regressions/figures/ && \
-	cp analysis/*.png  /home/vegayon/Dropbox/Apps/Overleaf/MURI\ regressions/figures/ 
+	cp analysis/*.png  /home/vegayon/Dropbox/Apps/Overleaf/MURI\ regressions/figures/
 analyze: 
 	$(MAKE) clean && \
 	R CMD BATCH analysis/univariate.R && \

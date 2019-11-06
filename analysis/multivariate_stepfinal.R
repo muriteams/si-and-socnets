@@ -166,3 +166,84 @@ add_groups(
   name. = "Subscales",
   at.   = "Agreeableness"
 )
+
+# Plots ------------------------------------------------------------------------
+
+# Normality assumptions
+model1a_6$call <- quote(` `)
+model2a_5$call <- quote(` `)
+
+graphics.off()
+
+png("analysis/multivariate_stepfinal_gof-time1.png", width = 500, height = 300)
+op <- par(mfrow=c(2,2), mar = c(4,4,2,1))
+plot(model1a_6, which = c(1, 2, 5))
+dev.off()
+par(op)
+
+png("analysis/multivariate_stepfinal_gof-time2.png", width = 500, height = 300)
+par(mfrow=c(2,2), mar = c(4,4,2,1))
+plot(model2a_5, which = c(1, 2, 5))
+dev.off()
+par(op)
+
+# Distribution of the data
+library(ggplot2)
+library(gridExtra)
+
+# Plot for time 1
+p1 <- ggplot(dat1, aes(y = CIF_T1, x = `Age0 Min`)) +
+  geom_jitter() +
+  geom_smooth() +
+  labs(y = "CI in time 1", x = "Age Min")
+
+p2 <- ggplot(dat1, aes(y = CIF_T1, x = `RME0 Range`)) +
+  geom_jitter() +
+  geom_smooth() +
+  labs(y = "CI in time 1", x = "RME Range")
+
+p3 <- ggplot(dat1, aes(y = CIF_T1, x = `SocialAwareness Avg.`)) +
+  geom_jitter() +
+  geom_smooth() +
+  labs(y = "CI in time 1", x = "Social Awareness Avg.")
+
+p4 <- ggplot(dat1, aes(y = CIF_T1, x = `InterpersonalRelationship Avg.`)) +
+  geom_jitter() +
+  geom_smooth() +
+  labs(y = "CI in time 1", x = "Interp. Rel. Avg.")
+
+p <- marrangeGrob(list(p1, p2, p3, p4), nrow=2, ncol=2, top="",
+             layout_matrix = matrix(c(1,2,3,4), nrow=2, byrow = TRUE))
+ggsave(plot = p, filename = "analysis/multivariate_stepfinal_time1.png", 
+       height = 4, width = 6, units="in")
+
+# Plot for time 2
+p1 <- ggplot(dat2, aes(y = CIF_T2, x = `Size`)) +
+  geom_jitter(width=0) +
+  geom_smooth() +
+  labs(y = "CI in time 2", x = "Size")
+
+p2 <- ggplot(dat2, aes(y = CIF_T2, x = `RME0 Range`)) +
+  geom_jitter() +
+  geom_smooth() +
+  labs(y = "CI in time 2", x = "RME Range")
+
+p3 <- ggplot(dat2, aes(y = CIF_T2, x = `TIPI_Agreeableness Avg.`)) +
+  geom_jitter() +
+  geom_smooth() +
+  labs(y = "CI in time 2", x = "Agreeableness Avg.")
+
+p4 <- ggplot(dat2, aes(y = CIF_T2, x = `TIPI_EmotionalStability Avg.`)) +
+  geom_jitter() +
+  geom_smooth() +
+  labs(y = "CI in time 2", x = "Emotional Stability Avg.")
+
+p5 <- ggplot(dat2, aes(y = CIF_T2, x = `TIPI_Extraversion Range`)) +
+  geom_jitter() +
+  geom_smooth() +
+  labs(y = "CI in time 2", x = "Extraversion Range")
+
+p <- marrangeGrob(list(p1, p2, p3, p4, p5), nrow=3, ncol=2, top="",
+                  layout_matrix = matrix(c(1,2,3,4,5,6), nrow=3, byrow = TRUE))
+ggsave(plot = p, filename = "analysis/multivariate_stepfinal_time2.png", 
+       height = 5, width = 6, units="in")
