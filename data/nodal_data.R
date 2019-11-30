@@ -3,8 +3,8 @@
 library(dplyr)
 library(magrittr)
 
-dat     <- haven::read_sav("data-raw/MURI_AllSurveys - FINAL_073018.sav")
-group   <- haven::read_sav("data-raw/MURI_AllSurveys - FINAL - Group level data_11-9-18.sav")
+dat     <- haven::read_sav("data-raw/AllSurveys - FINAL_073018.sav")
+group   <- haven::read_sav("data-raw/AllSurveys - FINAL - Group level data_11-9-18.sav")
 
 
 # Standarized Collective Intelligence Variables in Time 1 and 2
